@@ -1,13 +1,53 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
+import subprocess
+import requests
+import uuid
+import os
 
 app = Flask(__name__)
+OUTPUT_DIR = "static"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-@app.route('/')
-def home():
-    return 'Hello, Railway!'
-
-@app.route('/edit', methods=['POST'])
-def edit():
+@app.route("/add_overlay", methods=["POST"])
+def add_overlay():
     data = request.get_json()
-    video_url = data.get('videoUrl')
-    return jsonify({"message": f"Video URL received: {video_url}"})
+    video_url = data.get("videoUrl")
+    overlay_text = data.get("overlayText", "Default Overlay")
+
+    if not video_url:
+        return jsonify({"error": "Missing videoUrl"}), 400
+
+    input_filename = f"input_{uuid.uuid4()}.mp4"
+    output_filename = f"output_{uuid.uuid4()}.mp4"
+    input_path = os.path.join(OUTPUT_DIR, input_filename)
+    output_path = os.path.join(OUTPUT_DIR, output_filename)
+
+    # Download video
+    with requests.get(video_url, stream=True) as r:
+        with open(input_path, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+    # Overlay dengan FFmpeg
+    ffmpeg_cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-vf", f"drawtext=text='{overlay_text}':fontcolor=white:fontsize=32:x=(w-text_w)/2:y=30",
+        "-codec:a", "copy",
+        output_path
+    ]
+    subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # Hapus input (optional)
+    os.remove(input_path)
+
+    # Return URL hasil overlay
+    public_url = request.host_url + f"static/{output_filename}"
+    return jsonify({
+        "status": "success",
+        "overlay_url": public_url
+    })
+
+# Serve static files
+@app.route('/static/<path:filename>')
+def serve_file(filename):
+    return send_from_directory(OUTPUT_DIR, filename)
