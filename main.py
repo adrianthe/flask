@@ -47,7 +47,10 @@ def add_overlay():
         "overlay_url": public_url
     })
 
-# Serve static files
 @app.route('/static/<path:filename>')
 def serve_file(filename):
     return send_from_directory(OUTPUT_DIR, filename)
+
+# ⬇️ Tambahin ini di bawah
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
