@@ -1,13 +1,13 @@
-from flask import Flask, jsonify
-import os
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
+@app.route("/")
+def home():
+    return "Hello from Flask on Railway!"
 
-@app.route('/')
-def index():
-    return jsonify({"Choo Choo": "Welcome to your Flask app 🚅"})
-
-
-if __name__ == '__main__':
-    app.run(debug=True, port=os.getenv("PORT", default=5000))
+@app.route("/edit", methods=["POST"])
+def edit():
+    data = request.get_json()
+    video_url = data.get("videoUrl")
+    return jsonify({"status": "success", "received_url": video_url})
